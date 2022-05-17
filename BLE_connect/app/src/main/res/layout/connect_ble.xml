@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:orientation="vertical"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    <!-- a container to save all the sub-views -->
+    <androidx.recyclerview.widget.RecyclerView
+
+        android:layout_width="match_parent"
+        android:layout_height="350dp"
+        tools:context=".MainActivity"
+        android:id="@+id/recyclerView">
+
+    </androidx.recyclerview.widget.RecyclerView>
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:layout_width="410dp"
+        android:layout_height="150dp">
+
+        <Button
+            android:id="@+id/searchBtn"
+            android:layout_width="200dp"
+            android:layout_height="50dp"
+            android:text="Start Scanning"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent" />
+    </androidx.constraintlayout.widget.ConstraintLayout>
+
+</LinearLayout>
