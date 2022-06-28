@@ -1,9 +1,7 @@
 package com.example.ble_connect.BLEmodule
 
 import android.annotation.SuppressLint
-import android.bluetooth.BluetoothAdapter
-import android.bluetooth.BluetoothDevice
-import android.bluetooth.BluetoothManager
+import android.bluetooth.*
 import android.bluetooth.le.*
 import android.content.ContentValues.TAG
 import android.content.Context
@@ -11,6 +9,7 @@ import android.content.pm.PackageManager
 import android.os.*
 import android.util.Log
 import android.widget.Button
+import android.widget.TextView
 import android.widget.Toast
 import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AppCompatActivity
@@ -26,11 +25,13 @@ class ConnectActivity : AppCompatActivity() {
     private var bLEScanner: BluetoothLeScanner? = null
     private var bLEManager: BluetoothManager? = null
     private var bLEAdapter: BluetoothAdapter? = null
+    private var bleGatt: BluetoothGatt? = null
     var mAdapter: RecyclerViewAdapter? = null
+    var statusText:TextView? = null
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.connect_ble)
-
+        statusText = findViewById(R.id.statusText)
         // Use this check to determine whether BLE is supported on the device.  Then you can
         // selectively disable BLE-related features.
         if (!packageManager.hasSystemFeature(PackageManager.FEATURE_BLUETOOTH_LE)) {
@@ -61,13 +62,7 @@ class ConnectActivity : AppCompatActivity() {
     //Android 5.0以上
     private fun scanFilters(): List<ScanFilter> {
         //https://btprodspecificationrefs.blob.core.windows.net/assigned-numbers/Assigned%20Number%20Types/Health%20Device%20Profile.pdf
-        val missedConnectionUUID = "0x1008"
-        val emergencyUUID = "0x1008"
-        val catchUUID = "0x1008"
-        val catchAllUUID = "0x1008"
-        val filter =
-            ScanFilter.Builder().setServiceUuid(ParcelUuid.fromString(emergencyUUID))
-                .build()
+        val filter = ScanFilter.Builder().setDeviceName("MI").build()
         val list = ArrayList<ScanFilter>()
         list.add(filter)
         return list
@@ -121,16 +116,19 @@ class ConnectActivity : AppCompatActivity() {
         //Toast.makeText(baseContext, "Into scan function", Toast.LENGTH_SHORT).show()
         when (enable) {
             false -> {
+                statusText?.text = getString(R.string.scanning)
                 Handler(Looper.getMainLooper()).postDelayed({
                     scanning = false
+                    statusText?.text = getString(R.string.disconnect)
                     bLEScanner?.stopScan(scanCallback)
                 }, 10000)
                 scanning = true
-                bLEScanner!!.startScan(null, scanSettings(), scanCallback)
+                bLEScanner!!.startScan(scanFilters(), scanSettings(), scanCallback)
                 Toast.makeText(baseContext, "Start Scan", Toast.LENGTH_SHORT).show()
 
             }
             true -> {
+                statusText?.text = getString(R.string.disconnect)
                 scanning = false
                 bLEScanner!!.stopScan(scanCallback)
                 devicesArray.clear()
@@ -140,5 +138,71 @@ class ConnectActivity : AppCompatActivity() {
         }
 
     }
+    @SuppressLint("MissingPermission")
+    fun connectDevice(device: BluetoothDevice?){
+        bleGatt = device?.connectGatt(this, false, gattClientCallback)
+    }
+
+    private val gattClientCallback: BluetoothGattCallback = object: BluetoothGattCallback(){
+
+        @SuppressLint("MissingPermission")
+        override fun onConnectionStateChange(gatt: BluetoothGatt?, status: Int, newState: Int) {
+            super.onConnectionStateChange(gatt, status, newState)
+            if(status == BluetoothGatt.GATT_FAILURE ) {
+                disconnectGattServer()
+                return
+            } else if( status != BluetoothGatt.GATT_SUCCESS ) {
+                disconnectGattServer()
+                return
+            }
+
+            if(newState == BluetoothProfile.STATE_CONNECTED){
+                statusText?.setOnClickListener {
+                    statusText?.text = getString(R.string.connect)
+                }
+                Log.d(TAG, "Connected to the GATT server")
+                gatt!!.discoverServices()
+            } else if ( newState == BluetoothProfile.STATE_DISCONNECTED ) {
+                disconnectGattServer()
+            }
+        }
+
+        override fun onServicesDiscovered(gatt: BluetoothGatt?, status: Int) {
+            super.onServicesDiscovered(gatt, status)
+            //check if the discovery failed
+            if(status != BluetoothGatt.GATT_SUCCESS){
+                Log.e(TAG, "Device service discovery failed, status: $status")
+                return
+            }
+
+            //log for successful discovery
+            Log.d(TAG, "Services discovery is successful")
+        }
+
+        override fun onCharacteristicChanged(
+            gatt: BluetoothGatt?,
+            characteristic: BluetoothGattCharacteristic?
+        ) {
+            super.onCharacteristicChanged(gatt, characteristic)
+            //readCharacteristic(characteristic)
+        }
+        @SuppressLint("MissingPermission")
+        fun disconnectGattServer(){
+            Log.d(TAG, "Closing Gatt connection")
+            // disconnect and close the gatt
+            if (bleGatt != null) {
+                bleGatt!!.disconnect()
+                bleGatt!!.close()
+                statusText?.setOnClickListener {
+                    statusText?.text = getString(R.string.disconnect)
+                }
+            }
+        }
+
+    }
+
+
+
+
 }
 
